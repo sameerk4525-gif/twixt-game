@@ -17,6 +17,7 @@ int main(void) {
 
     while (1) {
 
+        printf("\nTurn: %s\n", (turn == RED ? "RED" : "BLACK"));
         game_draw_board(&g);
 
         int r, c;
@@ -24,16 +25,18 @@ int main(void) {
         if (mode == 2 && turn == BLK) {
             game_cpu_move(&g, turn);
         } else {
-            if (turn == RED)
-                printf("Red move (row col, 0 0 quits): ");
-            else
-                printf("Black move (row col, 0 0 quits): ");
+            printf("Enter move (row col) OR -1 -1 to undo OR 0 0 to quit: ");
 
             if (scanf("%d %d", &r, &c) != 2) break;
 
             if (r == 0 && c == 0) {
                 printf("Game ended.\n");
                 break;
+            }
+
+            if (r == -1 && c == -1) {
+                game_undo(&g);
+                continue;
             }
 
             if (r < 1 || r > g.size || c < 1 || c > g.size) {
@@ -49,8 +52,7 @@ int main(void) {
 
         if (game_player_wins(&g, turn)) {
             game_draw_board(&g);
-            if (turn == RED) printf("RED wins!\n");
-            else             printf("BLACK wins!\n");
+            printf("%s wins!\n", (turn == RED ? "RED" : "BLACK"));
             break;
         }
 
