@@ -1,4 +1,3 @@
-
 #ifndef TWIXT_GAME_H
 #define TWIXT_GAME_H
 
@@ -22,6 +21,11 @@ typedef struct {
     char grid[LIM][LIM];   
     Edge edges[LIM * 12];
     int eCount;
+
+    
+    Pos moveStack[LIM * LIM];
+    int moveTop;
+
 } Game;
 
 #define C_RED   "\x1b[31m"
@@ -33,6 +37,7 @@ int  game_place(Game *g, int row, int col, int player);
 int  game_player_wins(Game *g, int player);
 void game_cpu_move(Game *g, int player);
 void game_draw_board(const Game *g);
+void game_undo(Game *g);   
 
 int  inside_board(const Game *g, int r, int c);
 
