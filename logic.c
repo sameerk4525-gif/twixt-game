@@ -1,10 +1,12 @@
-#include <stdlib.h>   
-#include "game.h"     
+#include <stdlib.h>
+#include <stdio.h>
+#include "game.h"
 
 int kr[8] = { -2,-2,-1,-1, 1, 1, 2, 2 };
 int kc[8] = { -1, 1,-2, 2,-2, 2,-1, 1 };
 
 int seen[LIM][LIM];
+
 int inside_board(const Game *g, int r, int c) {
     return (r >= 0 && r < g->size && c >= 0 && c < g->size);
 }
@@ -13,38 +15,31 @@ void game_init(Game *g, int n) {
     if (n < 5)  n = 5;
     if (n > LIM) n = LIM;
 
-    g->size   = n;
+    g->size = n;
     g->eCount = 0;
+    g->moveTop = 0;
 
     for (int i = 0; i < g->size; i++) {
         for (int j = 0; j < g->size; j++) {
-            g->grid[i][j] = '.'; 
+            g->grid[i][j] = '.';
         }
     }
-
-   
 }
 
 int segments_intersect(Pos p1, Pos p2, Pos p3, Pos p4) {
-    
     int mid1_r = p1.r + p2.r;
     int mid1_c = p1.c + p2.c;
 
     int mid2_r = p3.r + p4.r;
     int mid2_c = p3.c + p4.c;
 
-    if (mid1_r == mid2_r && mid1_c == mid2_c) {
-      
-        return 1;
-    }
-    return 0;
+    return (mid1_r == mid2_r && mid1_c == mid2_c);
 }
 
 int edge_crosses(const Game *g, Pos a, Pos b) {
     for (int i = 0; i < g->eCount; i++) {
         Edge E = g->edges[i];
 
-        
         if ((E.a.r == a.r && E.a.c == a.c) ||
             (E.a.r == b.r && E.a.c == b.c) ||
             (E.b.r == a.r && E.b.c == a.c) ||
@@ -53,31 +48,32 @@ int edge_crosses(const Game *g, Pos a, Pos b) {
         }
 
         if (segments_intersect(a, b, E.a, E.b)) {
-            return 1; 
+            return 1;
         }
     }
     return 0;
 }
+
 int edge_exists(const Game *g, Pos a, Pos b, int owner) {
     for (int i = 0; i < g->eCount; i++) {
         Edge E = g->edges[i];
         if (E.owner != owner) continue;
 
-        int same_dir = (E.a.r == a.r && E.a.c == a.c &&
-                        E.b.r == b.r && E.b.c == b.c);
-
-        int flip_dir = (E.a.r == b.r && E.a.c == b.c &&
-                        E.b.r == a.r && E.b.c == a.c);
-
-        if (same_dir || flip_dir) return 1;
+        if ((E.a.r == a.r && E.a.c == a.c &&
+             E.b.r == b.r && E.b.c == b.c) ||
+            (E.a.r == b.r && E.a.c == b.c &&
+             E.b.r == a.r && E.b.c == a.c)) {
+            return 1;
+        }
     }
     return 0;
 }
+
 void add_link(Game *g, Pos a, Pos b, int owner) {
     if (g->eCount >= LIM * 12) return;
 
-    g->edges[g->eCount].a     = a;
-    g->edges[g->eCount].b     = b;
+    g->edges[g->eCount].a = a;
+    g->edges[g->eCount].b = b;
     g->edges[g->eCount].owner = owner;
     g->eCount++;
 }
@@ -97,23 +93,40 @@ void connect_knight_neighbours(Game *g, int r, int c, int owner) {
         Pos to = { nr, nc };
 
         if (edge_exists(g, from, to, owner)) continue;
-        if (edge_crosses(g, from, to))       continue;
+        if (edge_crosses(g, from, to)) continue;
 
         add_link(g, from, to, owner);
     }
 }
 
-
 int game_place(Game *g, int row, int col, int player) {
-    if (!inside_board(g, row, col))  return 0;
-    if (g->grid[row][col] != '.')    return 0;
+    if (!inside_board(g, row, col)) return 0;
+    if (g->grid[row][col] != '.') return 0;
 
     g->grid[row][col] = (player == RED ? 'R' : 'B');
+
+    // ⭐ store move for undo
+    g->moveStack[g->moveTop++] = (Pos){row, col};
+
     connect_knight_neighbours(g, row, col, player);
+
     return 1;
 }
 
+// ⭐ Undo feature
+void game_undo(Game *g) {
+    if (g->moveTop == 0) {
+        printf("No moves to undo!\n");
+        return;
+    }
 
+    Pos last = g->moveStack[--g->moveTop];
+    g->grid[last.r][last.c] = '.';
+
+    printf("Undo successful!\n");
+}
+
+// DFS for win detection
 void dfs_search(const Game *g, int r, int c, int player, int *found) {
     if (*found) return;
 
@@ -137,10 +150,10 @@ void dfs_search(const Game *g, int r, int c, int player, int *found) {
 
         if (E.a.r == r && E.a.c == c) {
             next = E.b;
-            use  = 1;
+            use = 1;
         } else if (E.b.r == r && E.b.c == c) {
             next = E.a;
-            use  = 1;
+            use = 1;
         }
 
         if (use && !seen[next.r][next.c]) {
@@ -151,7 +164,6 @@ void dfs_search(const Game *g, int r, int c, int player, int *found) {
 }
 
 int game_player_wins(Game *g, int player) {
-   
     for (int i = 0; i < g->size; i++)
         for (int j = 0; j < g->size; j++)
             seen[i][j] = 0;
@@ -159,7 +171,6 @@ int game_player_wins(Game *g, int player) {
     int found = 0;
 
     if (player == RED) {
-      
         for (int c = 0; c < g->size; c++) {
             if (g->grid[0][c] == 'R' && !seen[0][c]) {
                 dfs_search(g, 0, c, player, &found);
@@ -167,7 +178,6 @@ int game_player_wins(Game *g, int player) {
             }
         }
     } else {
-       
         for (int r = 0; r < g->size; r++) {
             if (g->grid[r][0] == 'B' && !seen[r][0]) {
                 dfs_search(g, r, 0, player, &found);
@@ -179,11 +189,17 @@ int game_player_wins(Game *g, int player) {
     return 0;
 }
 
-
+// ⭐ improved bot
 void game_cpu_move(Game *g, int player) {
-    int rr[LIM * LIM];
-    int cc[LIM * LIM];
-    int n = 0;
+    int center = g->size / 2;
+
+    if (g->grid[center][center] == '.') {
+        game_place(g, center, center, player);
+        printf("Computer placed at %d %d\n", center+1, center+1);
+        return;
+    }
+
+    int rr[LIM * LIM], cc[LIM * LIM], n = 0;
 
     for (int r = 0; r < g->size; r++) {
         for (int c = 0; c < g->size; c++) {
@@ -198,10 +214,7 @@ void game_cpu_move(Game *g, int player) {
     if (n == 0) return;
 
     int id = rand() % n;
-    int r  = rr[id];
-    int c  = cc[id];
+    game_place(g, rr[id], cc[id], player);
 
-    game_place(g, r, c, player);
-
-    printf("Computer placed at %d %d\n", r + 1, c + 1);
+    printf("Computer placed at %d %d\n", rr[id]+1, cc[id]+1);
 }
