@@ -1,38 +1,22 @@
-YELLOW  := \033[1;33m
-GREEN   := \033[1;32m
-RED     := \033[1;31m
-BLUE    := \033[1;34m
-CYAN    := \033[1;36m
-RESET   := \033[0m
-
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -Wall
 
-TARGET = twixt
-SRC = main.c logic.c board.c
-OBJ = $(SRC:.c=.o)
+all: twixt
 
-all: banner $(TARGET)
+twixt: main.o logic.o board.o
+	$(CC) $(CFLAGS) main.o logic.o board.o -o twixt
 
-banner:
-	@echo "$(CYAN)======================================$(RESET)"
-	@echo "$(GREEN)        Building Twixt Game...       $(RESET)"
-	@echo "$(CYAN)======================================$(RESET)"
+main.o: main.c game.h
+	$(CC) $(CFLAGS) -c main.c
 
-$(TARGET): $(OBJ)
-	@echo "$(YELLOW)[LINK]$(RESET) $@"
-	@$(CC) $(OBJ) -o $(TARGET)
-	@echo "$(GREEN)✔ Build Successful$(RESET)"
+logic.o: logic.c game.h
+	$(CC) $(CFLAGS) -c logic.c
 
-%.o: %.c game.h
-	@echo "$(BLUE)[CC]$(RESET) $<"
-	@$(CC) $(CFLAGS) -c $< -o $@
+board.o: board.c game.h
+	$(CC) $(CFLAGS) -c board.c
 
-run: $(TARGET)
-	@echo "$(CYAN)Running Twixt...$(RESET)"
-	@./$(TARGET)
+run: twixt
+	./twixt
 
 clean:
-	@echo "$(RED)Cleaning project...$(RESET)"
-	@rm -f $(OBJ) $(TARGET)
-	@echo "$(GREEN)✔ Clean Done$(RESET)"
+	rm -f *.o twixt
